@@ -14,12 +14,12 @@ const allowedOriginPattern = new RegExp(process.env.ALLOWED_ORIGIN_PATTERN);
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin) return callback(null, true);
-        console.log(process.env.ALLOWED_ORIGIN_PATTERN);
+        
         if (allowedOriginPattern.test(origin)) {
             return callback(null, true);
         }
 
-        return callback(new Error('Not allowed by CORS'), false);
+        return callback(new Error(`${origin} is not allowed by CORS`), false);
     },
     credentials: true
 }));
