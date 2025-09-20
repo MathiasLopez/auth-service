@@ -13,8 +13,14 @@ const allowedOriginPattern = new RegExp(process.env.ALLOWED_ORIGIN_PATTERN);
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
+        console.log(origin)
         console.log(process.env.ALLOWED_ORIGIN_PATTERN);
+        if (!origin) return callback(null, true);
+        
+
+        if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('192.168.1.10')) {
+            return callback(null, true);
+        }
         if (allowedOriginPattern.test(origin)) {
             return callback(null, true);
         }
