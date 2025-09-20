@@ -1,14 +1,10 @@
 services:
   auth-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NODE_ENV: ${NODE_ENV}
+    image: ghcr.io/mathiaslopez/auth-service:latest
     container_name: auth-service
     ports:
       - "3000:3000"
-    restart: unless-stopped
+    restart: "always"
     environment:
       - NODE_ENV=${NODE_ENV}
       - AUTH_PORT=${AUTH_PORT}
