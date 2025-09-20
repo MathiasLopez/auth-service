@@ -1,0 +1,18 @@
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV}
+    container_name: auth-service
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - AUTH_PORT=${AUTH_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - COOKIE_SHARING_KEY=${COOKIE_SHARING_KEY}
+      - ALLOWED_ORIGIN_PATTERN=${ALLOWED_ORIGIN_PATTERN}
