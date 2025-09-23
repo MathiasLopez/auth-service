@@ -17,10 +17,7 @@ export const login = async (req, res) => {
             sameSite: 'lax'
         });
         if (req.query.redirect) {
-            const url = new URL(req.query.redirect);
-            url.searchParams.set('successful_authentication', true);
-
-            return res.redirect(url.toString());
+            return res.redirect(req.query.redirect);
         } else {
             return res.send(`<h2>Login successful</h2>`);
         }
