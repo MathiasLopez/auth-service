@@ -29,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
 
 app.use('/', webAuthRoutes)
-app.use('/auth', apiAuthRoutes);
+app.use('/api', apiAuthRoutes);
 
 app.listen(PORT, () => {
     const env = process.env.NODE_ENV || 'development';

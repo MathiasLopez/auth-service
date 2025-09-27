@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 class AuthService {
   login(username, password) {
     if (username === 'admin' && password === 'admin') {
-      const token = jwt.sign({ sub: 1 }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN, algorithm: process.env.JWT_ALGORITHM });
+      const token = jwt.sign({ sub: "1" }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN, algorithm: process.env.JWT_ALGORITHM });
       return { success: true, token };
     }
     return { success: false, message: 'Invalid credentials' };
