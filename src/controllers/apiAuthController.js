@@ -11,9 +11,9 @@ export const login = async (req, res) => {
 };
 
 export function checkSsoToken(req, res) {
-    const token = req.cookies?.sso_token ?? req.body?.sso_token;
+    const token = AuthService.extractToken(req);
     if (!token) {
-        return res.status(401).json();
+        return res.status(401).json({ error: "Token not provided" });
     }
 
     const payload = AuthService.verifyToken(token);
