@@ -31,6 +31,10 @@ app.use(cookieParser())
 app.use('/', webAuthRoutes)
 app.use('/api', apiAuthRoutes);
 
+app.get('/', (req, res) => {
+  res.redirect('/login');
+});
+
 app.listen(PORT, () => {
     const env = process.env.NODE_ENV || 'development';
     if (env === 'development') {
