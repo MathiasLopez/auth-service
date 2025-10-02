@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 #Visual Studio Code
 .vscode/
+/src/generated/prisma

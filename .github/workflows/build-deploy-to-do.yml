@@ -78,6 +78,9 @@ jobs:
             echo "Pull latest image from GHCR"
             docker compose -f docker-compose.yml pull
 
+            echo "Running migrations"
+            docker compose -f docker-compose.yml run --rm auth-service npx prisma migrate deploy
+
             echo "Restart containers with updated image"
             docker compose -f docker-compose.yml up -d
 

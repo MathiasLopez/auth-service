@@ -1,9 +1,14 @@
 import jwt from 'jsonwebtoken';
 import UserService from './userService.js';
-const adminHash = '$2b$05$R9IA8U/Ebki0CesrWZlJQ.BRV3Z9xUKnsnVdr6.3JsImMqDNq/5Pi'; // Pass: Admin123!
+
 class AuthService {
-  login(username, password) {
-    if (username === 'admin' && UserService.checkPassword({ user: { password: adminHash }, password})) {
+  async login(username, password) {
+    let user = await UserService.getUserByUsername(username);
+    if (!user) {
+      return { success: false, message: 'Invalid credentials' };
+    }
+
+    if (await UserService.checkPassword({ user: { password: user.password }, password })) {
       const token = jwt.sign({ sub: "1" }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN, algorithm: process.env.JWT_ALGORITHM });
       return { success: true, token };
     }

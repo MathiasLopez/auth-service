@@ -8,7 +8,7 @@ export const renderLogin = (req, res) => {
 export const login = async (req, res) => {
     const { username, password } = req.body;
 
-    const result = AuthService.login(username, password);
+    const result = await AuthService.login(username, password);
 
     if (result.success) {
         res.cookie('sso_token', result.token, {

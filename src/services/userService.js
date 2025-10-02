@@ -1,4 +1,7 @@
 import bcrypt from 'bcrypt'
+import { PrismaClient } from '../generated/prisma/index.js';
+
+const prisma = new PrismaClient();
 
 class UserService {
     async register({ username, email, password }) {
@@ -7,6 +10,26 @@ class UserService {
             validateEmail(email)
             validatePassword(password);
             const hashedPassword = await bcrypt.hash(password, parseInt(process.env.SALT_ROUNDS));
+            const userRole = await prisma.role.findUnique({
+                where: { name: 'user' },
+            });
+
+            const user = await prisma.user.create({
+                data: {
+                    username,
+                    email,
+                    password: hashedPassword,
+                    isActive: process.env.NODE_ENV === "development",
+                    roles: {
+                        create: [
+                            {
+                                role: { connect: { id: userRole.id } },
+                            },
+                        ],
+                    }
+                },
+                include: { roles: true },
+            });
 
             return { success: true };
         } catch (error) {
@@ -14,8 +37,14 @@ class UserService {
         }
     }
 
+    getUserByUsername(username) {
+        return prisma.user.findUnique({
+            where: { username }
+        });
+    }
+
     checkPassword({ user, password }) {
-        return bcrypt.compareSync(password, user.password)
+        return bcrypt.compare(password, user.password)
     }
 }
 

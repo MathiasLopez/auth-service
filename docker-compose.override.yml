@@ -5,5 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_ENV: ${NODE_ENV}
-    container_name: auth-service
+    restart: "no"
+
+  auth-db:
     restart: "no"
