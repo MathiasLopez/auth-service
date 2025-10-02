@@ -12,6 +12,8 @@ RUN if [ "$NODE_ENV" = "production" ]; then npm ci --only=production; else npm c
 
 COPY . .
 
+RUN npx prisma generate
+
 EXPOSE 3000
 
 CMD ["npm", "start"]
