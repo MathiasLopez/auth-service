@@ -6,6 +6,14 @@ services:
       args:
         NODE_ENV: ${NODE_ENV}
     restart: "no"
+    networks:
+      - shared-network
 
   auth-db:
     restart: "no"
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true

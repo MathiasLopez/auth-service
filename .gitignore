@@ -141,3 +141,8 @@ vite.config.ts.timestamp-*
 #Visual Studio Code
 .vscode/
 /src/generated/prisma
+
+# certs
+certs/
+*.pem
+*.key
