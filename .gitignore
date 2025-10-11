@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 certs/
 *.pem
 *.key
+
+# mac
+.DS_Store
