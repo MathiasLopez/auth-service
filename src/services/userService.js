@@ -43,6 +43,27 @@ class UserService {
         });
     }
 
+    /**
+     * Retrieves a list of users from the database.
+     * 
+     * If `excludeUserId` is provided, the user with that ID will be excluded from the results.
+     *
+     * @param {Object} [options={}] - Options for the query.
+     * @param {number|string} [options.excludeUserId] - ID of the user to exclude from the results.
+     * @returns {Promise<Array<{id: number, username: string}>>} A list of users.
+     */
+    async getUsers({ excludeUserId } = {}) {
+        const where = excludeUserId ? { id: { not: excludeUserId } } : {};
+        const users = await prisma.user.findMany({
+            where,
+            select: {
+                id: true,
+                username: true
+            }
+        });
+        return users
+    }
+
     checkPassword({ user, password }) {
         return bcrypt.compare(password, user.password)
     }

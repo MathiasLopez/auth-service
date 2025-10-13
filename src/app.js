@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import apiAuthRoutes from './routes/apiAuthRoutes.js';
 import webAuthRoutes from './routes/webAuthRoutes.js';
+import { authMiddleware } from './middlewares/authMiddleware.js';
 
 const app = express();
 dotenv.config();
@@ -27,6 +28,8 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
+
+app.use(authMiddleware);
 
 app.use('/', webAuthRoutes)
 app.use('/api', apiAuthRoutes);
