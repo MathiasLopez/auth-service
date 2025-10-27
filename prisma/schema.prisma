@@ -25,6 +25,8 @@ model User {
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  createdBy String @default("00000000-0000-0000-0000-000000000000")
+  updatedBy String @default("00000000-0000-0000-0000-000000000000")
   deletedAt DateTime?
 
   roles UserRole[]
@@ -35,17 +37,32 @@ model Role {
   name  String     @unique
   users UserRole[]
   permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String
 }
 
 model Permission {
   id    Int        @id @default(autoincrement())
   name  String     @unique
   roles RolePermission[]
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String
 }
 
 model UserRole {
   userId String
   roleId Int
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String
 
   user User @relation(fields: [userId], references: [id])
   role Role @relation(fields: [roleId], references: [id])
@@ -56,6 +73,11 @@ model UserRole {
 model RolePermission {
   roleId       Int
   permissionId Int
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String
 
   role       Role       @relation(fields: [roleId], references: [id])
   permission Permission @relation(fields: [permissionId], references: [id])
