@@ -24,6 +24,8 @@ class UserService {
                         create: [
                             {
                                 role: { connect: { id: userRole.id } },
+                                createdBy: "00000000-0000-0000-0000-000000000000",
+                                updatedBy: "00000000-0000-0000-0000-000000000000",
                             },
                         ],
                     }

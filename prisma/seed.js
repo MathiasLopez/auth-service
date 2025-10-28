@@ -1,5 +1,6 @@
 import { PrismaClient } from '../src/generated/prisma/index.js';
 
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -7,26 +8,26 @@ async function main() {
   const superuserPermission = await prisma.permission.upsert({
     where: { name: 'superuser' },
     update: {},
-    create: { name: 'superuser' },
+    create: { name: 'superuser', createdBy: SYSTEM_USER_ID, updatedBy: SYSTEM_USER_ID },
   });
 
   const basicPermission = await prisma.permission.upsert({
     where: { name: 'read_only' },
     update: {},
-    create: { name: 'read_only' },
+    create: { name: 'read_only', createdBy: SYSTEM_USER_ID, updatedBy: SYSTEM_USER_ID },
   });
 
   // Create roles
   const adminRole = await prisma.role.upsert({
     where: { name: 'admin' },
     update: {},
-    create: { name: 'admin' },
+    create: { name: 'admin', createdBy: SYSTEM_USER_ID, updatedBy: SYSTEM_USER_ID },
   });
 
   const userRole = await prisma.role.upsert({
     where: { name: 'user' },
     update: {},
-    create: { name: 'user' },
+    create: { name: 'user', createdBy: SYSTEM_USER_ID, updatedBy: SYSTEM_USER_ID },
   });
 
   // Assign permissions to roles
@@ -36,6 +37,8 @@ async function main() {
     create: {
       roleId: adminRole.id,
       permissionId: superuserPermission.id,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID
     },
   });
 
@@ -45,6 +48,8 @@ async function main() {
     create: {
       roleId: userRole.id,
       permissionId: basicPermission.id,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID
     },
   });
 
