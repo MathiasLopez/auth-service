@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import { PrismaClient } from '../generated/prisma/index.js';
+import EmailService from './emailService.js';
 
 const prisma = new PrismaClient();
 
@@ -33,7 +34,13 @@ class UserService {
                 include: { roles: true },
             });
 
-            return { success: true };
+            const sendResult = await EmailService.sendVerificationEmail({ user });
+            if (sendResult) {
+                return { success: true };
+            } else {
+                // TODO: Send error.
+                return { success: false };
+            }
         } catch (error) {
             return { success: false, message: error }
         }
