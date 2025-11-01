@@ -1,5 +1,5 @@
 import { MailtrapClient } from "mailtrap"
-import jwt from 'jsonwebtoken';
+import TokenService from "./tokenService";
 
 const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
 
@@ -8,7 +8,7 @@ const sender = { name: process.env.APP_NAME, email: process.env.MAIL_SENDER };
 class EmailService {
     async sendVerificationEmail({ user }) {
         try {
-            const token = generateToken(user);
+            const token = TokenService.createEmailVerificationToken(user);
             const verifyUrl = `${process.env.AUTH_URL}/verify?token=${token}`;
             const sendResult = await client.send({
                 from: sender,
@@ -57,20 +57,6 @@ class EmailService {
             console.error(error)
             return false;
         }
-    }
-}
-
-function generateToken(user) {
-    return jwt.sign({ sub: user.id }, process.env.JWT_EMAIL_SECRET, { expiresIn: process.env.JWT_EMAIL_VERIFY_EXPIRATION, algorithm: process.env.JWT_ALGORITHM });
-}
-
-function decodeToken(token) {
-    try {
-        return jwt.verify(token, process.env.JWT_EMAIL_SECRET, { algorithms: [process.env.JWT_ALGORITHM] });
-    } catch (err) {
-        //TODO: Improve, return if the token has expired or the type of error.
-        console.error(err)
-        return null;
     }
 }
 

@@ -17,10 +17,16 @@ Its main goal is to demonstrate user authentication, JWT management, and session
 
 2. Create a .env file
 ```
+APP_NAME=Kanban
+MAIL_SENDER=no-reply@mathiaslopez.tech
+AUTH_URL="http://auth.shareddomain.me"
+MAILTRAP_TOKEN=
+JWT_EMAIL_VERIFICATION_SECRET=123a4567-b12c-12d3-e456-426614174000
+JWT_EMAIL_VERIFICATION_EXPIRATION=1h
 NODE_ENV=development
 AUTH_PORT=3000
-JWT_SECRET=123a4567-b12c-12d3-e456-426614174000
-JWT_EXPIRES_IN=10m
+JWT_AUTH_SECRET=123a4567-b12c-12d3-e456-426614174000
+JWT_AUTH_EXPIRATION=10m
 JWT_ALGORITHM=HS256
 COOKIE_SHARING_KEY=.shareddomain.test
 ALLOWED_ORIGIN_PATTERN=^https?:\/\/([a-z0-9-]+\.)*shareddomain\.test(:[0-9]+)?$

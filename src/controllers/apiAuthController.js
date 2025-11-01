@@ -1,4 +1,5 @@
 import AuthService from "../services/authService.js";
+import TokenService from "../services/tokenService.js";
 
 export const login = async (req, res) => {
     const { username, password } = req.body;
@@ -11,12 +12,12 @@ export const login = async (req, res) => {
 };
 
 export function checkSsoToken(req, res) {
-    const token = AuthService.extractToken(req);
+    const token = TokenService.extractTokenFromRequest(req);
     if (!token) {
         return res.status(401).json({ error: "Token not provided" });
     }
 
-    const payload = AuthService.verifyToken(token);
+    const payload = TokenService.verifyAuthToken(token);
     if (!payload) {
         return res.status(401).json();
     }
