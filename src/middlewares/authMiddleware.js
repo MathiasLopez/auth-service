@@ -1,12 +1,14 @@
 import TokenService from "../services/tokenService.js";
 
-const publicPaths = ['/login', '/api/login', '/register'];
+const publicPaths = ['/login', '/api/login', '/register', '/verification/email', '/verification/email/resend'];
 
 export const authMiddleware = (req, res, next) => {
     if (publicPaths.includes(req.path)) return next();
 
     const token = TokenService.extractTokenFromRequest(req);
-    if (!token) {
+    if (token == 'Token Expired') {
+        return res.status(401).json({ error: token });
+    } else {
         return res.status(401).json({ error: "Token not provided" });
     }
 

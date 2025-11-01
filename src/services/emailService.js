@@ -1,15 +1,16 @@
 import { MailtrapClient } from "mailtrap"
-import TokenService from "./tokenService";
+import TokenService from "./tokenService.js";
 
 const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
 
 const sender = { name: process.env.APP_NAME, email: process.env.MAIL_SENDER };
 
 class EmailService {
-    async sendVerificationEmail({ user }) {
+    async sendVerificationEmail({ user, redirect }) {
         try {
-            const token = TokenService.createEmailVerificationToken(user);
-            const verifyUrl = `${process.env.AUTH_URL}/verify?token=${token}`;
+            const token = TokenService.createEmailVerificationToken({ sub: user.id });
+            const buildRedirect = redirect ? `&${redirect}` : '';
+            const verifyUrl = `${process.env.AUTH_URL}/verification/email?token=${token}${buildRedirect}`;
             const sendResult = await client.send({
                 from: sender,
                 to: [{ email: user.email }],
