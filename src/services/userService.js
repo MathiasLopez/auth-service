@@ -7,7 +7,7 @@ class UserService {
     async register({ username, email, password }) {
         try {
             validateUsername(username);
-            validateEmail(email)
+            await validateEmail(email)
             validatePassword(password);
             const hashedPassword = await bcrypt.hash(password, parseInt(process.env.SALT_ROUNDS));
             const userRole = await prisma.role.findUnique({
@@ -112,7 +112,7 @@ function validateUsername(username) {
     }
 }
 
-function validateEmail(email) {
+async function validateEmail(email) {
     if (typeof email !== 'string') {
         throw new Error('Email must be a string');
     }
@@ -120,6 +120,13 @@ function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         throw new Error('Invalid email format');
+    }
+
+    const userEmail = await prisma.user.findUnique({
+        where: { email },
+    });
+    if (userEmail) {
+        throw new Error('The email is already in use.');
     }
 }
 
