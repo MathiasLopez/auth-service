@@ -1,10 +1,11 @@
-import { PrismaClient } from "@prisma/client/extension";
 import AuthService from "../services/authService.js";
 import UserService from "../services/userService.js"
 import EmailService from "../services/emailService.js";
+import UrlUtils from "../utils/urlUtils.js";
+import TokenService from '../services/tokenService.js';
 
 export const renderLogin = (req, res) => {
-    res.send(getLoginHtmlForm(req.query.redirect));
+    res.send(getLoginHtmlForm(req));
 };
 
 export const login = async (req, res) => {
@@ -26,26 +27,32 @@ export const login = async (req, res) => {
         }
     }
 
-    return res.send(getLoginHtmlForm(req.query.redirect, result.message));
+    return res.send(getLoginHtmlForm(req, result.message));
 }
 
 export const renderRegister = (req, res) => {
-    res.send(getRegisterHtmlForm(req.query.redirect));
+    res.send(getRegisterHtmlForm(req));
 }
 
 export const register = async (req, res) => {
     const { username, email, password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
-        return res.send(getRegisterHtmlForm(req.query.redirect, "Passwords do not match."));
+        return res.send(getRegisterHtmlForm(req, "Passwords do not match."));
     }
 
+    const redirect = req.query.redirect;
     const result = await UserService.register({ username, email, password });
-    const redirect = getRedirect(req.query.redirect);
     if (result.success) {
-        res.redirect(`/login${redirect}`);
+        const sendResult = await EmailService.sendVerificationEmail({ user: result.user, query: { redirect } });
+        if (sendResult) {
+            return res.redirect(UrlUtils.buildUrlWithQuery('/login', { redirect }));
+        } else {
+            // TODO: Log error and try to resend email again or show button to resend.
+            return res.send(getRegisterHtmlForm(req, 'An error occurred while attempting to send the confirmation email. Please try sending another one.'));
+        }
     } else {
-        res.send(getRegisterHtmlForm(redirect, result.message))
+        res.send(getRegisterHtmlForm(req, result.message));
     }
 }
 
@@ -53,18 +60,24 @@ export const verificationEmailController = async (req, res) => {
     const { token } = req.query;
 
     try {
-        const verificationResult = await UserService.emailVerification(token);
+        if (!token)
+            return res.status(400).send(getVerifyHtml({ message: 'Token is missing', success: false, req: req }));
+
+        const payload = await TokenService.verifyEmailVerificationToken(token);
+        if (!payload) {
+            throw new Error();
+        }
+        const verificationResult = await UserService.emailVerification(payload.sub);
         if (verificationResult.alreadyActive) {
             return res.status(200).send(getVerifyHtml({ message: 'Your account was already verified', success: true, req: req }));
         }
 
         return res.status(200).send(getVerifyHtml({ message: 'Your account has been successfully verified', success: true, req: req }));
     } catch (err) {
-        if (err.message === 'Token is missing') {
-            return res.status(400).send(getVerifyHtml({ message: err.message, success: false, req: req }));
-        } if (err.message === 'User not found') {
+        if (err.message === 'User not found') {
             return res.status(404).send(getVerifyHtml({ message: err.message, success: false, req: req }));
-        } if (err.message == 'Token Expired') {
+        }
+        if (err.message == 'Token Expired') {
             return res.status(401).send(getVerifyHtml({ message: err.message, success: false, req: req, tokenExpired: true }));
         }
         console.error(err);
@@ -73,10 +86,10 @@ export const verificationEmailController = async (req, res) => {
 }
 
 
-function getLoginHtmlForm(redirectUrl, message) {
-    const redirect = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
+function getLoginHtmlForm(request, message) {
+    const redirect = request.query.redirect;
     let authFormHtml = `<h2>Login</h2>
-        <form method="POST" action="/login${redirect}">
+        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/login', { redirect })}">
         <input type="text" name="username" placeholder="User" required />
         <input type="password" name="password" placeholder="Password" required />
         <button type="submit">Log in</button>
@@ -85,17 +98,16 @@ function getLoginHtmlForm(redirectUrl, message) {
     if (message) {
         authFormHtml += `<p style="color: red; margin-top: 10px;">${message}</p>`
     } else {
-        authFormHtml += `<a href="/register${redirect}"><button type="button">Create Account</button></a>`;
-
+        authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/register', { redirect })}"><button type="button">Create Account</button></a>`;
     }
     return authFormHtml;
 }
 
-function getRegisterHtmlForm(redirectUrl, message) {
-    const redirect = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
+function getRegisterHtmlForm(request, message) {
+    const redirect = request.query.redirect;
     let registerFormHtml = `
         <h2>Create Account</h2>
-        <form method="POST" action="/register${redirect}">
+        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/register', { redirect })}">
             <input type="text" name="username" placeholder="User" required />
             <input type="email" name="email" placeholder="Email" required />
             <input type="password" name="password" placeholder="Password" required />
@@ -113,9 +125,9 @@ function getRegisterHtmlForm(redirectUrl, message) {
 
 function getVerifyHtml({ req, message, success, tokenExpired }) {
     const color = success ? '#28a745' : '#dc3545';
-    const redirect = getRedirect(req.query.redirect);
-    const redirectUrl = `/login${redirect}`;
-    const redirectRegisterUrl = `/verification/email/resend${redirect}`;
+    const redirect = req.query.redirect;
+    const redirectUrl = UrlUtils.buildUrlWithQuery('/login', { redirect });
+    const redirectRegisterUrl = UrlUtils.buildUrlWithQuery('/verification/email/resend', { redirect });
 
     let page = `
     <!DOCTYPE html>
@@ -177,7 +189,7 @@ export const handlerResendVerificationEmailController = async (req, res) => {
         if (user.isActive) {
             return res.send(resendVerificationEmailHtml(req, 'This account is already verified.', true));
         }
-        const redirect = getRedirect(req.query.redirect);
+        const redirect = req.query.redirect;
         const sendResult = await EmailService.sendVerificationEmail({ user, redirect });
         if (sendResult) {
             return res.send(resendVerificationEmailHtml(req, 'A new verification email has been sent.'));
@@ -188,17 +200,13 @@ export const handlerResendVerificationEmailController = async (req, res) => {
         console.error('Error resending verification email:', error);
         return res.send(resendVerificationEmailHtml(req, 'An unexpected error occurred.', true));
     }
-};
-
-function getRedirect(redirect) {
-    return redirect ? `?redirect=${encodeURIComponent(req.query.redirect)}` : '';
 }
 
-function resendVerificationEmailHtml(req, message, isError = false) {
-    const redirect = getRedirect(req.query.redirect);
+function resendVerificationEmailHtml(request, message, isError = false) {
+    const redirect = request.query.redirect;
     let html = `
         <h2>Resend Verification Email</h2>
-        <form method="POST" action="/verification/email/resend${redirect}">
+        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/verification/email/resend', { redirect })}">
             <input type="email" name="email" placeholder="Enter your email" required />
             <button type="submit">Send Verification Email</button>
         </form>
@@ -209,6 +217,6 @@ function resendVerificationEmailHtml(req, message, isError = false) {
         html += `<p style="color: ${color}; margin-top: 10px;">${message}</p>`;
     }
 
-    html += `<a href="/login${redirect}"><button type="button">Back to Login</button></a>`;
+    html += `<a href="${UrlUtils.buildUrlWithQuery('/login', { redirect })}"><button type="button">Back to Login</button></a>`;
     return html;
 }

@@ -89,7 +89,7 @@ function verifyToken(token, secret) {
         return jwt.verify(token, secret, { algorithms: [process.env.JWT_ALGORITHM] });
     } catch (err) {
         if (err instanceof jwt.TokenExpiredError) {
-            return 'Token Expired';
+            throw new Error('Token Expired');
         }
         console.error(err)
         return null;

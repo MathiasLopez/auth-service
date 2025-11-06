@@ -32,11 +32,17 @@ class UrlUtils {
 
         // Add or merge query params
         if (typeof query === 'string') {
-            const [key, value] = query.split('=');
-            if (key) url.searchParams.set(key, value ?? '');
+            const params = new URLSearchParams(query);
+            for (const [key, value] of params.entries()) {
+                if (value !== undefined && value !== null) {
+                    url.searchParams.set(key, value);
+                }
+            }
         } else if (typeof query === 'object') {
             Object.entries(query).forEach(([key, value]) => {
-                url.searchParams.set(key, value);
+                if (value !== undefined && value !== null) {
+                    url.searchParams.set(key, value);
+                }
             });
         }
 

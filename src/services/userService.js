@@ -1,12 +1,10 @@
 import bcrypt from 'bcrypt'
 import { PrismaClient } from '../generated/prisma/index.js';
-import EmailService from './emailService.js';
-import TokenService from './tokenService.js';
 
 const prisma = new PrismaClient();
 
 class UserService {
-    async register({ username, email, password, redirect }) {
+    async register({ username, email, password }) {
         try {
             validateUsername(username);
             validateEmail(email)
@@ -21,7 +19,6 @@ class UserService {
                     username,
                     email,
                     password: hashedPassword,
-                    isActive: process.env.NODE_ENV === "development",
                     roles: {
                         create: [
                             {
@@ -35,13 +32,7 @@ class UserService {
                 include: { roles: true },
             });
 
-            const sendResult = await EmailService.sendVerificationEmail({ user, redirect });
-            if (sendResult) {
-                return { success: true };
-            } else {
-                // TODO: Send error.
-                return { success: false };
-            }
+            return { success: true, user };
         } catch (error) {
             return { success: false, message: error }
         }
@@ -84,18 +75,9 @@ class UserService {
         return bcrypt.compare(password, user.password)
     }
 
-    async emailVerification(token) {
-        if (!token)
-            throw new Error('Token is missing');
-
-        const payload = await TokenService.verifyEmailVerificationToken(token);
-
-        if (payload == 'Token Expired') {
-            throw new Error(payload);
-        }
-
+    async emailVerification(userId) {
         const user = await prisma.user.findUnique({
-            where: { id: payload.sub },
+            where: { id: userId },
         });
 
         if (!user) {
