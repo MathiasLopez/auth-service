@@ -84,3 +84,8 @@ model RolePermission {
 
   @@id([roleId, permissionId])
 }
+
+model TokenValidations {
+  id        String       @id
+  isValid   Boolean   @default(true)
+}

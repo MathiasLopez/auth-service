@@ -99,6 +99,7 @@ function getLoginHtmlForm(request, message) {
         authFormHtml += `<p style="color: red; margin-top: 10px;">${message}</p>`
     } else {
         authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/register', { redirect })}"><button type="button">Create Account</button></a>`;
+        authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/password/recover', { redirect })}"><button type="button">Forgot password?</button></a>`;
     }
     return authFormHtml;
 }
@@ -202,6 +203,38 @@ export const handlerResendVerificationEmailController = async (req, res) => {
     }
 }
 
+export const renderPasswordRecoveryController = (req, res) => {
+    return res.send(getPasswordRecoverHtml(req));
+}
+
+export const passwordRecoverController = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).send(getPasswordRecoverHtml(req, 'Email is required.', true));
+        }
+
+        const user = await UserService.getUserByEmail(email);
+        if (!user) {
+            return res.status(400).send(getPasswordRecoverHtml(req, 'No user found with that email.', true));
+        }
+
+        const redirect = req.query.redirect;
+        const sendResult = await EmailService.sendRecoverPasswordEmail({ user, redirect });
+        if (sendResult) {
+            return res.send(getPasswordRecoverHtml(req, 'Check your inbox! We’ve just sent you a link to reset your password.'));
+        } else {
+            return res.status(400).send(getPasswordRecoverHtml(req, 'Try again.', true));
+        }
+
+        //Send email
+        console.log(email);
+    } catch (error) {
+
+    }
+}
+
 function resendVerificationEmailHtml(request, message, isError = false) {
     const redirect = request.query.redirect;
     let html = `
@@ -209,6 +242,25 @@ function resendVerificationEmailHtml(request, message, isError = false) {
         <form method="POST" action="${UrlUtils.buildUrlWithQuery('/verification/email/resend', { redirect })}">
             <input type="email" name="email" placeholder="Enter your email" required />
             <button type="submit">Send Verification Email</button>
+        </form>
+        `;
+
+    if (message) {
+        const color = isError ? 'red' : 'green';
+        html += `<p style="color: ${color}; margin-top: 10px;">${message}</p>`;
+    }
+
+    html += `<a href="${UrlUtils.buildUrlWithQuery('/login', { redirect })}"><button type="button">Back to Login</button></a>`;
+    return html;
+}
+
+function getPasswordRecoverHtml(request, message, isError = false) {
+    const redirect = request.query.redirect;
+    let html = `
+        <h2>Password recovery</h2>
+        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/password/recover', { redirect })}">
+            <input type="email" name="email" placeholder="Enter your email" required />
+            <button type="submit">Send password recover link</button>
         </form>
         `;
 

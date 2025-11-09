@@ -60,6 +60,62 @@ class EmailService {
             return false;
         }
     }
+
+    async sendRecoverPasswordEmail({ user, query }) {
+        try {
+            const token = await TokenService.createPasswordResetToken({ sub: user.id });
+            let verifyUrl = UrlUtils.buildUrlWithQuery(`${process.env.AUTH_URL}/verification/password/recovery`, { token });
+            verifyUrl = UrlUtils.buildUrlWithQuery(verifyUrl, query);
+            const sendResult = await client.send({
+                from: sender,
+                to: [{ email: user.email }],
+                subject: "Verifica tu cuenta",
+                html: `
+                    <h2>Hola ${user.username},</h2>
+
+                    <p>
+                        Recibimos una solicitud para restablecer la contraseña de tu cuenta en 
+                        <strong>${process.env.APP_NAME}</strong>.
+                    </p>
+
+                    <p>
+                        Si realizaste esta solicitud, hacé clic en el siguiente botón para crear una nueva contraseña:
+                    </p>
+
+                    <p>
+                        <a href="${verifyUrl}" style="
+                        background: #007bff;
+                        color: white;
+                        padding: 12px 24px;
+                        border-radius: 6px;
+                        text-decoration: none;
+                        font-weight: bold;
+                        display: inline-block;
+                        ">
+                        Restablecer contraseña
+                        </a>
+                    </p>
+
+                    <p>
+                        Si no solicitaste restablecer tu contraseña, podés ignorar este correo. 
+                        Tu cuenta permanecerá segura.
+                    </p>
+
+                    <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+
+                    <p style="font-size:12px;color:#777;">
+                        Este correo fue enviado automáticamente por <strong>${process.env.APP_NAME}</strong>.<br>
+                        No respondas a este mensaje.
+                    </p>
+                    `
+            })
+            console.log(JSON.stringify(sendResult))
+            return sendResult.success;
+        } catch (error) {
+            console.error(error)
+            return false;
+        }
+    }
 }
 
 export default new EmailService();

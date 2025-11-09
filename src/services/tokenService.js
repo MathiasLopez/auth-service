@@ -1,4 +1,8 @@
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid'
+import { PrismaClient } from '../generated/prisma/index.js';
+
+const prisma = new PrismaClient();
 
 class TokenService {
     /**
@@ -33,8 +37,22 @@ class TokenService {
         return createToken(payload, process.env.JWT_EMAIL_VERIFICATION_SECRET, process.env.JWT_EMAIL_VERIFICATION_EXPIRATION);
     }
 
-    createPasswordResetToken(payload) {
-        return "Not yet implemented";//TODO: example: createToken(payload, process.env.JWT_PASSWORD_RESET_SECRET, process.env.JWT_PASSWORD_RESET_EXPIRATION);
+    async createPasswordResetToken(payload) {
+        try {
+            const guid = uuidv4();
+            payload.guid = guid;
+            const token = createToken(payload, process.env.JWT_PASSWORD_RESET_SECRET, process.env.JWT_PASSWORD_RESET_EXPIRATION);
+
+            const tokenValidation = await prisma.tokenValidations.create({
+                data: {
+                    id: guid
+                },
+            });
+            return token;
+        } catch (error) {
+            console.log(error);
+            throw Error('Try again.');
+        }
     }
 
     /**
