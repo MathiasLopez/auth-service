@@ -1,6 +1,6 @@
 import TokenService from "../services/tokenService.js";
 
-const publicPaths = ['/login', '/api/login', '/register', '/verification/email', '/verification/email/resend', '/password/recover', '/verification/password/recovery'];
+const publicPaths = ['/login', '/api/login', '/register', '/verification/email', '/verification/email/resend', '/forgot-password', '/reset-password'];
 
 export const authMiddleware = (req, res, next) => {
     try {

@@ -99,7 +99,7 @@ function getLoginHtmlForm(request, message) {
         authFormHtml += `<p style="color: red; margin-top: 10px;">${message}</p>`
     } else {
         authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/register', { redirect })}"><button type="button">Create Account</button></a>`;
-        authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/password/recover', { redirect })}"><button type="button">Forgot password?</button></a>`;
+        authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/forgot-password', { redirect })}"><button type="button">Forgot password?</button></a>`;
     }
     return authFormHtml;
 }
@@ -191,7 +191,7 @@ export const handlerResendVerificationEmailController = async (req, res) => {
             return res.send(resendVerificationEmailHtml(req, 'This account is already verified.', true));
         }
         const redirect = req.query.redirect;
-        const sendResult = await EmailService.sendVerificationEmail({ user, redirect });
+        const sendResult = await EmailService.sendVerificationEmail({ user, query: { redirect } });
         if (sendResult) {
             return res.send(resendVerificationEmailHtml(req, 'A new verification email has been sent.'));
         } else {
@@ -203,11 +203,11 @@ export const handlerResendVerificationEmailController = async (req, res) => {
     }
 }
 
-export const renderPasswordRecoveryController = (req, res) => {
+export const getForgotPasswordController = (req, res) => {
     return res.send(getPasswordRecoverHtml(req));
 }
 
-export const passwordRecoverController = async (req, res) => {
+export const postForgotPasswordController = async (req, res) => {
     try {
         const { email } = req.body;
 
@@ -221,17 +221,42 @@ export const passwordRecoverController = async (req, res) => {
         }
 
         const redirect = req.query.redirect;
-        const sendResult = await EmailService.sendRecoverPasswordEmail({ user, redirect });
+        const sendResult = await EmailService.sendRecoverPasswordEmail({ user, query: { redirect } });
         if (sendResult) {
-            return res.send(getPasswordRecoverHtml(req, 'Check your inbox! We’ve just sent you a link to reset your password.'));
+            return res.send(getPasswordRecoverHtml(req, 'Check your inbox! We have just sent you a link to reset your password.'));
         } else {
             return res.status(400).send(getPasswordRecoverHtml(req, 'Try again.', true));
         }
-
-        //Send email
-        console.log(email);
     } catch (error) {
+        console.error(error);
+    }
+}
 
+export const getResetPasswordController = async (req, res) => {
+    try {
+        const { token } = req.query;
+        await TokenService.verifyPasswordResetToken(token);
+        return res.send(getResetPasswordHtmlForm({ request: req, token }));
+    } catch (error) {
+        return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'Try again', isError: true, token }));
+    }
+}
+
+export const postResetPasswordController = async (req, res) => {
+    try {
+        const { password, confirmPassword, token } = req.body;
+
+        if (password !== confirmPassword) {
+            return res.status(404).send(getResetPasswordHtmlForm({ request: req, message: 'Passwords do not match.', isError: true, token }));
+        }
+
+        const payload = await TokenService.verifyPasswordResetToken(token);
+        await UserService.resetPassword({ userId: payload.sub, password });
+
+        await TokenService.invalidatePasswordResetToken(payload.guid)
+        return res.send(getResetPasswordHtmlForm(req, 'Your password has been successfully reset.'));
+    } catch (error) {
+        return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'Try again', isError: true, token }));
     }
 }
 
@@ -258,7 +283,7 @@ function getPasswordRecoverHtml(request, message, isError = false) {
     const redirect = request.query.redirect;
     let html = `
         <h2>Password recovery</h2>
-        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/password/recover', { redirect })}">
+        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/forgot-password', { redirect })}">
             <input type="email" name="email" placeholder="Enter your email" required />
             <button type="submit">Send password recover link</button>
         </form>
@@ -271,4 +296,24 @@ function getPasswordRecoverHtml(request, message, isError = false) {
 
     html += `<a href="${UrlUtils.buildUrlWithQuery('/login', { redirect })}"><button type="button">Back to Login</button></a>`;
     return html;
+}
+
+function getResetPasswordHtmlForm({ request, message, isError, token }) {
+    const { redirect } = request.query;//TODO: Hide the form and send a success message and a button to return to login.
+    let registerFormHtml = `
+        <h2>Reset account password</h2>
+        <form method="POST" action="${UrlUtils.buildUrlWithQuery('/reset-password', { redirect })}">
+            <input type="hidden" name="token" value="${token}">
+            <input type="password" name="password" placeholder="Password" required />
+            <input type="password" name="confirmPassword" placeholder="Confirm Password" required />
+            <button type="submit">Reset password</button>
+        </form>
+        `;
+
+    if (message) {
+        const color = isError ? 'red' : 'green';
+        registerFormHtml += `<p style="color: ${color}; margin-top: 10px;">${message}</p>`
+    }
+
+    return registerFormHtml;
 }

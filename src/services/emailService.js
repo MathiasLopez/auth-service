@@ -64,7 +64,7 @@ class EmailService {
     async sendRecoverPasswordEmail({ user, query }) {
         try {
             const token = await TokenService.createPasswordResetToken({ sub: user.id });
-            let verifyUrl = UrlUtils.buildUrlWithQuery(`${process.env.AUTH_URL}/verification/password/recovery`, { token });
+            let verifyUrl = UrlUtils.buildUrlWithQuery(`${process.env.AUTH_URL}/reset-password`, { token });
             verifyUrl = UrlUtils.buildUrlWithQuery(verifyUrl, query);
             const sendResult = await client.send({
                 from: sender,

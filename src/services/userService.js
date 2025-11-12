@@ -94,6 +94,23 @@ class UserService {
 
         return { verified: true };
     }
+
+    async resetPassword({ userId, password }) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, parseInt(process.env.SALT_ROUNDS));
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        });
+    }
 }
 
 function validateUsername(username) {

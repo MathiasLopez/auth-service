@@ -90,8 +90,40 @@ class TokenService {
      * @param {string} token - The password reset token to verify.
      * @returns {Object|null} The decoded payload if the token is valid, otherwise `null`.
      */
-    verifyPasswordResetToken(token) {
-        return "Not yet implemented";//TODO: example: return verifyToken(token, process.env.JWT_PASSWORD_RESET_SECRET);
+    async verifyPasswordResetToken(token) {
+        try {
+            const payload = verifyToken(token, process.env.JWT_PASSWORD_RESET_SECRET);
+            const tokenRecord = await prisma.tokenValidations.findUnique({
+                where: { id: payload.guid },
+            });
+
+            if (!tokenRecord) {
+                throw new Error('Invalid token');;
+            }
+
+            if (tokenRecord.isValid) {
+                return payload;
+            } else {
+                throw new Error('Token already used');
+            }
+        } catch (error) {
+            if (error.message == 'Token Expired') {
+                throw error;
+            }
+            console.log(error);
+            throw Error('Try again.');
+        }
+    }
+
+    async invalidatePasswordResetToken(tokenId) {
+        try {
+            await prisma.tokenValidations.update({
+                where: { id: tokenId },
+                data: { isValid: false },
+            });
+        } catch (error) {
+            console.error(error);
+        }
     }
 }
 
