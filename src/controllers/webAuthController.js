@@ -233,12 +233,12 @@ export const postForgotPasswordController = async (req, res) => {
 }
 
 export const getResetPasswordController = async (req, res) => {
+    const { token } = req.query;
     try {
-        const { token } = req.query;
         await TokenService.verifyPasswordResetToken(token);
         return res.send(getResetPasswordHtmlForm({ request: req, token }));
     } catch (error) {
-        return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'Try again', isError: true, token }));
+        return res.status(400).send(resendVerificationEmailHtml(req, 'The password reset link is invalid or has expired. Please request a new one.', true));
     }
 }
 
