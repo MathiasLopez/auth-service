@@ -30,6 +30,7 @@ model User {
   deletedAt DateTime?
 
   roles UserRole[]
+  tokenValidations TokenValidations[]
 }
 
 model Role {
@@ -86,6 +87,11 @@ model RolePermission {
 }
 
 model TokenValidations {
-  id        String       @id
-  isValid   Boolean   @default(true)
+  id         String   @id
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  isValid    Boolean  @default(true)
+  createdAt  DateTime @default(now())
 }
