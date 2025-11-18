@@ -238,14 +238,14 @@ export const getResetPasswordController = async (req, res) => {
         await TokenService.verifyPasswordResetToken(token);
         return res.send(getResetPasswordHtmlForm({ request: req, token }));
     } catch (error) {
+        console.error(error.message);
         return res.status(400).send(resendVerificationEmailHtml(req, 'The password reset link is invalid or has expired. Please request a new one.', true));
     }
 }
 
 export const postResetPasswordController = async (req, res) => {
+    const { password, confirmPassword, token } = req.body;
     try {
-        const { password, confirmPassword, token } = req.body;
-
         if (password !== confirmPassword) {
             return res.status(404).send(getResetPasswordHtmlForm({ request: req, message: 'Passwords do not match.', isError: true, token }));
         }
@@ -253,7 +253,7 @@ export const postResetPasswordController = async (req, res) => {
         const payload = await TokenService.verifyPasswordResetToken(token);
         await UserService.resetPassword({ userId: payload.sub, password });
 
-        await TokenService.invalidatePasswordResetToken(payload.guid)
+        await TokenService.invalidatePasswordResetToken(payload.tokenId)
         return res.send(getResetPasswordHtmlForm(req, 'Your password has been successfully reset.'));
     } catch (error) {
         return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'Try again', isError: true, token }));

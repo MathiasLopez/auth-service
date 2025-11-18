@@ -37,15 +37,16 @@ class TokenService {
         return createToken(payload, process.env.JWT_EMAIL_VERIFICATION_SECRET, process.env.JWT_EMAIL_VERIFICATION_EXPIRATION);
     }
 
-    async createPasswordResetToken(payload) {
+    async createPasswordResetToken({ userId }) {
         try {
             const guid = uuidv4();
-            payload.guid = guid;
-            const token = createToken(payload, process.env.JWT_PASSWORD_RESET_SECRET, process.env.JWT_PASSWORD_RESET_EXPIRATION);
-
+            const token = createToken({ sub: userId, tokenId: guid }, process.env.JWT_PASSWORD_RESET_SECRET, process.env.JWT_PASSWORD_RESET_EXPIRATION);
+            const decoded = jwt.decode(token);
             const tokenValidation = await prisma.tokenValidations.create({
                 data: {
-                    id: guid
+                    id: guid,
+                    userId: userId,
+                    expiresAt: new Date(decoded.exp * 1000),
                 },
             });
             return token;
@@ -94,11 +95,15 @@ class TokenService {
         try {
             const payload = verifyToken(token, process.env.JWT_PASSWORD_RESET_SECRET);
             const tokenRecord = await prisma.tokenValidations.findUnique({
-                where: { id: payload.guid },
+                where: { id: payload.tokenId },
             });
 
             if (!tokenRecord) {
-                throw new Error('Invalid token');;
+                throw new Error('Invalid token');
+            }
+
+            if (tokenRecord.used) {
+                throw new Error('Token already used');
             }
 
             if (tokenRecord.isValid) {
