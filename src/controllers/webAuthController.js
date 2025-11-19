@@ -239,7 +239,7 @@ export const getResetPasswordController = async (req, res) => {
         return res.send(getResetPasswordHtmlForm({ request: req, token }));
     } catch (error) {
         console.error(error.message);
-        return res.status(400).send(resendVerificationEmailHtml(req, 'The password reset link is invalid or has expired. Please request a new one.', true));
+        return res.status(400).send(getPasswordRecoverHtml(req, 'The password reset link is invalid or has expired. Please request a new one.', true));
     }
 }
 
@@ -254,9 +254,9 @@ export const postResetPasswordController = async (req, res) => {
         await UserService.resetPassword({ userId: payload.sub, password });
 
         await TokenService.invalidatePasswordResetToken(payload.tokenId)
-        return res.send(getResetPasswordHtmlForm(req, 'Your password has been successfully reset.'));
+        return res.send(getResetPasswordHtmlForm({ request: req, message: 'Your password has been successfully reset.'}));
     } catch (error) {
-        return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'Try again', isError: true, token }));
+        return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'The password reset link is invalid or has expired. Please request a new one.', isError: true, token }));
     }
 }
 
@@ -314,6 +314,8 @@ function getResetPasswordHtmlForm({ request, message, isError, token }) {
         const color = isError ? 'red' : 'green';
         registerFormHtml += `<p style="color: ${color}; margin-top: 10px;">${message}</p>`
     }
+
+    registerFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/login', { redirect })}"><button type="button">Back to Login</button></a>`;
 
     return registerFormHtml;
 }
