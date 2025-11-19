@@ -69,7 +69,7 @@ class EmailService {
             const sendResult = await client.send({
                 from: sender,
                 to: [{ email: user.email }],
-                subject: "Verifica tu cuenta",
+                subject: "Restablece tu contraseña",
                 html: `
                     <h2>Hola ${user.username},</h2>
 
