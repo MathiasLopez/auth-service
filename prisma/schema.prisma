@@ -16,21 +16,24 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  firstName String?
-  lastName  String?
-  email     String   @unique
-  password  String
-  isActive  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy String @default("00000000-0000-0000-0000-000000000000")
-  updatedBy String @default("00000000-0000-0000-0000-000000000000")
-  deletedAt DateTime?
+  id                String   @id @default(uuid())
+  tenantId          String   @default("00000000-0000-0000-0000-000000000000")
+  username          String   @unique
+  firstName         String?
+  lastName          String?
+  email             String   @unique
+  password          String
+  passwordChangedAt DateTime @default(now())
+  isActive          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String @default("00000000-0000-0000-0000-000000000000")
+  updatedBy         String @default("00000000-0000-0000-0000-000000000000")
+  deletedAt         DateTime?
 
-  roles UserRole[]
-  tokenValidations TokenValidations[]
+  roles          UserRole[]
+  refreshTokens  RefreshToken[]
+  actionTokens   UserActionToken[]
 }
 
 model Role {
@@ -86,12 +89,68 @@ model RolePermission {
   @@id([roleId, permissionId])
 }
 
-model TokenValidations {
-  id         String   @id
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  expiresAt  DateTime
-  used       Boolean  @default(false)
-  isValid    Boolean  @default(true)
-  createdAt  DateTime @default(now())
+enum UserActionTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  CHANGE_EMAIL
+  MAGIC_LOGIN
+  MFA_ENROLLMENT
+}
+
+enum RefreshTokenStatus {
+  ACTIVE
+  ROTATED
+  REVOKED
+  REUSED
+  EXPIRED
+}
+
+model RefreshToken {
+  id                String   @id @default(uuid())
+  tenantId          String
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  sessionId         String
+  deviceId          String?
+  tokenHash         String   @unique
+  tokenFamilyId     String
+  parentTokenId     String?
+  replacedByTokenId String?
+  status            RefreshTokenStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime
+  rotatedAt         DateTime?
+  revokedAt         DateTime?
+  reuseDetectedAt   DateTime?
+  createdByIp       String?
+  createdByUserAgent String?
+  lastUsedAt        DateTime?
+  lastUsedIp        String?
+  lastUsedUserAgent String?
+  metadata          Json?
+
+  @@index([tenantId, userId, status])
+  @@index([tenantId, sessionId])
+}
+
+model UserActionToken {
+  id                String   @id @default(uuid())
+  tenantId          String
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  type              UserActionTokenType
+  tokenHash         String   @unique
+  expiresAt         DateTime
+  usedAt            DateTime?
+  revokedAt         DateTime?
+  createdAt         DateTime @default(now())
+  createdByIp       String?
+  createdByUserAgent String?
+  consumedByIp      String?
+  consumedByUserAgent String?
+  replacesTokenId   String?
+  metadata          Json?
+
+  @@index([tenantId, userId, type])
+  @@index([tenantId, expiresAt])
 }

@@ -1,8 +1,4 @@
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid'
-import { PrismaClient } from '../generated/prisma/index.js';
-
-const prisma = new PrismaClient();
 
 class TokenService {
     /**
@@ -33,29 +29,6 @@ class TokenService {
         return createToken(payload, process.env.JWT_AUTH_SECRET, process.env.JWT_AUTH_EXPIRATION);
     }
 
-    createEmailVerificationToken(payload) {
-        return createToken(payload, process.env.JWT_EMAIL_VERIFICATION_SECRET, process.env.JWT_EMAIL_VERIFICATION_EXPIRATION);
-    }
-
-    async createPasswordResetToken({ userId }) {
-        try {
-            const guid = uuidv4();
-            const token = createToken({ sub: userId, tokenId: guid }, process.env.JWT_PASSWORD_RESET_SECRET, process.env.JWT_PASSWORD_RESET_EXPIRATION);
-            const decoded = jwt.decode(token);
-            const tokenValidation = await prisma.tokenValidations.create({
-                data: {
-                    id: guid,
-                    userId: userId,
-                    expiresAt: new Date(decoded.exp * 1000),
-                },
-            });
-            return token;
-        } catch (error) {
-            console.log(error);
-            throw Error('Try again.');
-        }
-    }
-
     /**
      * Verifies an authentication token.
      * 
@@ -67,68 +40,6 @@ class TokenService {
      */
     verifyAuthToken(token) {
         return verifyToken(token, process.env.JWT_AUTH_SECRET);
-    }
-
-    /**
-     * Verifies an email verification token.
-     * 
-     * Uses the email verification secret to validate the provided token.
-     * If the token is valid, returns its decoded payload.
-     * 
-     * @param {string} token - The email verification token to verify.
-     * @returns {Object|null} The decoded payload if the token is valid, otherwise `null`.
-     */
-    verifyEmailVerificationToken(token) {
-        return verifyToken(token, process.env.JWT_EMAIL_VERIFICATION_SECRET);
-    }
-
-    /**
-     * Verifies a password reset token.
-     * 
-     * Uses the password reset secret to validate the provided token.
-     * If the token is valid, returns its decoded payload.
-     * 
-     * @param {string} token - The password reset token to verify.
-     * @returns {Object|null} The decoded payload if the token is valid, otherwise `null`.
-     */
-    async verifyPasswordResetToken(token) {
-        try {
-            const payload = verifyToken(token, process.env.JWT_PASSWORD_RESET_SECRET);
-            const tokenRecord = await prisma.tokenValidations.findUnique({
-                where: { id: payload.tokenId },
-            });
-
-            if (!tokenRecord) {
-                throw new Error('Invalid token');
-            }
-
-            if (tokenRecord.used) {
-                throw new Error('Token already used');
-            }
-
-            if (tokenRecord.isValid) {
-                return payload;
-            } else {
-                throw new Error('Token already used');
-            }
-        } catch (error) {
-            if (error.message == 'Token Expired') {
-                throw error;
-            }
-            console.log(error);
-            throw Error('Try again.');
-        }
-    }
-
-    async invalidatePasswordResetToken(tokenId) {
-        try {
-            await prisma.tokenValidations.update({
-                where: { id: tokenId },
-                data: { isValid: false },
-            });
-        } catch (error) {
-            console.error(error);
-        }
     }
 }
 

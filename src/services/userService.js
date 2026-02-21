@@ -2,9 +2,10 @@ import bcrypt from 'bcrypt'
 import { PrismaClient } from '../generated/prisma/index.js';
 
 const prisma = new PrismaClient();
+const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID ?? "00000000-0000-0000-0000-000000000000";
 
 class UserService {
-    async register({ username, email, password }) {
+    async register({ username, email, password, tenantId }) {
         try {
             validateUsername(username);
             await validateEmail(email)
@@ -16,6 +17,7 @@ class UserService {
 
             const user = await prisma.user.create({
                 data: {
+                    tenantId: tenantId ?? DEFAULT_TENANT_ID,
                     username,
                     email,
                     password: hashedPassword,
@@ -50,6 +52,13 @@ class UserService {
         });
     }
 
+    getUserById(id) {
+        return prisma.user.findUnique({
+            where: { id },
+            select: { id: true, tenantId: true, passwordChangedAt: true, isActive: true }
+        });
+    }
+
     /**
      * Retrieves a list of users from the database.
      * 
@@ -59,8 +68,11 @@ class UserService {
      * @param {number|string} [options.excludeUserId] - ID of the user to exclude from the results.
      * @returns {Promise<Array<{id: number, username: string}>>} A list of users.
      */
-    async getUsers({ excludeUserId } = {}) {
-        const where = excludeUserId ? { id: { not: excludeUserId } } : {};
+    async getUsers({ excludeUserId, tenantId } = {}) {
+        const where = {
+            ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+            ...(tenantId ? { tenantId } : {}),
+        };
         const users = await prisma.user.findMany({
             where,
             select: {
@@ -108,7 +120,7 @@ class UserService {
 
         await prisma.user.update({
             where: { id: userId },
-            data: { password: hashedPassword },
+            data: { password: hashedPassword, passwordChangedAt: new Date() },
         });
     }
 }

@@ -1,5 +1,5 @@
 import { MailtrapClient } from "mailtrap"
-import TokenService from "./tokenService.js";
+import UserActionTokenService from "./userActionTokenService.js";
 import UrlUtils from "../utils/urlUtils.js";
 
 const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
@@ -9,7 +9,12 @@ const sender = { name: process.env.APP_NAME, email: process.env.MAIL_SENDER };
 class EmailService {
     async sendVerificationEmail({ user, query }) {
         try {
-            const token = TokenService.createEmailVerificationToken({ sub: user.id });
+            const { rawToken } = await UserActionTokenService.createActionToken({
+                tenantId: user.tenantId,
+                userId: user.id,
+                type: 'EMAIL_VERIFICATION',
+            });
+            const token = rawToken;
             let verifyUrl = UrlUtils.buildUrlWithQuery(`${process.env.AUTH_URL}/verification/email`, { token });
             verifyUrl = UrlUtils.buildUrlWithQuery(verifyUrl, query);
             const sendResult = await client.send({
@@ -63,7 +68,12 @@ class EmailService {
 
     async sendRecoverPasswordEmail({ user, query }) {
         try {
-            const token = await TokenService.createPasswordResetToken({ userId: user.id });
+            const { rawToken } = await UserActionTokenService.createActionToken({
+                tenantId: user.tenantId,
+                userId: user.id,
+                type: 'PASSWORD_RESET',
+            });
+            const token = rawToken;
             let verifyUrl = UrlUtils.buildUrlWithQuery(`${process.env.AUTH_URL}/reset-password`, { token });
             verifyUrl = UrlUtils.buildUrlWithQuery(verifyUrl, query);
             const sendResult = await client.send({

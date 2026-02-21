@@ -2,7 +2,8 @@ import AuthService from "../services/authService.js";
 import UserService from "../services/userService.js"
 import EmailService from "../services/emailService.js";
 import UrlUtils from "../utils/urlUtils.js";
-import TokenService from '../services/tokenService.js';
+import UserActionTokenService from '../services/userActionTokenService.js';
+import RefreshTokenService from "../services/refreshTokenService.js";
 
 export const renderLogin = (req, res) => {
     res.send(getLoginHtmlForm(req));
@@ -10,11 +11,25 @@ export const renderLogin = (req, res) => {
 
 export const login = async (req, res) => {
     const { username, password } = req.body;
+    const deviceId = req.cookies?.device_id || req.headers['x-device-id'];
 
-    const result = await AuthService.login(username, password);
+    const result = await AuthService.login({
+        username,
+        password,
+        tenantId: req.headers['x-tenant-id'],
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        deviceId,
+    });
 
     if (result.success) {
-        res.cookie('sso_token', result.token, {
+        res.cookie('sso_token', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            domain: process.env.COOKIE_SHARING_KEY,
+            sameSite: 'lax'
+        });
+        res.cookie('refresh_token', result.refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             domain: process.env.COOKIE_SHARING_KEY,
@@ -42,7 +57,7 @@ export const register = async (req, res) => {
     }
 
     const redirect = req.query.redirect;
-    const result = await UserService.register({ username, email, password });
+    const result = await UserService.register({ username, email, password, tenantId: req.headers['x-tenant-id'] });
     if (result.success) {
         const sendResult = await EmailService.sendVerificationEmail({ user: result.user, query: { redirect } });
         if (sendResult) {
@@ -63,11 +78,18 @@ export const verificationEmailController = async (req, res) => {
         if (!token)
             return res.status(400).send(getVerifyHtml({ message: 'Token is missing', success: false, req: req }));
 
-        const payload = await TokenService.verifyEmailVerificationToken(token);
-        if (!payload) {
-            throw new Error();
+        const consumeResult = await UserActionTokenService.consumeActionToken({
+            rawToken: token,
+            type: 'EMAIL_VERIFICATION',
+            consumedByIp: req.ip,
+            consumedByUserAgent: req.headers['user-agent'],
+        });
+
+        if (consumeResult.error) {
+            throw new Error(consumeResult.error);
         }
-        const verificationResult = await UserService.emailVerification(payload.sub);
+
+        const verificationResult = await UserService.emailVerification(consumeResult.record.userId);
         if (verificationResult.alreadyActive) {
             return res.status(200).send(getVerifyHtml({ message: 'Your account was already verified', success: true, req: req }));
         }
@@ -77,8 +99,8 @@ export const verificationEmailController = async (req, res) => {
         if (err.message === 'User not found') {
             return res.status(404).send(getVerifyHtml({ message: err.message, success: false, req: req }));
         }
-        if (err.message == 'Token Expired') {
-            return res.status(401).send(getVerifyHtml({ message: err.message, success: false, req: req, tokenExpired: true }));
+        if (err.message == 'TOKEN_EXPIRED') {
+            return res.status(401).send(getVerifyHtml({ message: 'Token Expired', success: false, req: req, tokenExpired: true }));
         }
         console.error(err);
         return res.status(400).send(getVerifyHtml({ message: 'The verification link is invalid', success: false, req: req }));
@@ -235,7 +257,13 @@ export const postForgotPasswordController = async (req, res) => {
 export const getResetPasswordController = async (req, res) => {
     const { token } = req.query;
     try {
-        await TokenService.verifyPasswordResetToken(token);
+        const verifyResult = await UserActionTokenService.validateActionToken({
+            rawToken: token,
+            type: 'PASSWORD_RESET',
+        });
+        if (verifyResult.error) {
+            throw new Error(verifyResult.error);
+        }
         return res.send(getResetPasswordHtmlForm({ request: req, token }));
     } catch (error) {
         console.error(error.message);
@@ -250,10 +278,22 @@ export const postResetPasswordController = async (req, res) => {
             return res.status(404).send(getResetPasswordHtmlForm({ request: req, message: 'Passwords do not match.', isError: true, token }));
         }
 
-        const payload = await TokenService.verifyPasswordResetToken(token);
-        await UserService.resetPassword({ userId: payload.sub, password });
+        const consumeResult = await UserActionTokenService.consumeActionToken({
+            rawToken: token,
+            type: 'PASSWORD_RESET',
+            consumedByIp: req.ip,
+            consumedByUserAgent: req.headers['user-agent'],
+        });
+        if (consumeResult.error) {
+            throw new Error(consumeResult.error);
+        }
 
-        await TokenService.invalidatePasswordResetToken(payload.tokenId)
+        await UserService.resetPassword({ userId: consumeResult.record.userId, password });
+        await RefreshTokenService.revokeAllByUser({
+            tenantId: consumeResult.record.tenantId,
+            userId: consumeResult.record.userId,
+        });
+
         return res.send(getResetPasswordHtmlForm({ request: req, message: 'Your password has been successfully reset.'}));
     } catch (error) {
         return res.status(400).send(getResetPasswordHtmlForm({ request: req, message: 'The password reset link is invalid or has expired. Please request a new one.', isError: true, token }));

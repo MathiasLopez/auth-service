@@ -1,8 +1,10 @@
 import UserService from './userService.js';
 import TokenService from './tokenService.js';
+import RefreshTokenService from './refreshTokenService.js';
+import { v4 as uuidv4 } from 'uuid';
 
 class AuthService {
-  async login(username, password) {
+  async login({ username, password, tenantId, ip, userAgent, deviceId }) {
     let user = await UserService.getUserByUsername(username);
     if (!user) {
       return { success: false, message: 'Invalid credentials' };
@@ -13,8 +15,21 @@ class AuthService {
     }
 
     if (await UserService.checkPassword({ user: { password: user.password }, password })) {
-      const token = TokenService.createAuthToken({ sub: user.id });
-      return { success: true, token };
+      const sessionId = uuidv4();
+      const accessToken = TokenService.createAuthToken({
+        sub: user.id,
+        tenantId: tenantId ?? user.tenantId,
+        sid: sessionId,
+      });
+      const { rawToken: refreshToken } = await RefreshTokenService.issueRefreshToken({
+        tenantId: tenantId ?? user.tenantId,
+        userId: user.id,
+        sessionId,
+        deviceId,
+        createdByIp: ip,
+        createdByUserAgent: userAgent,
+      });
+      return { success: true, accessToken, refreshToken, user };
     }
     return { success: false, message: 'Invalid credentials' };
   }
