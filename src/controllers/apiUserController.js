@@ -2,7 +2,7 @@ import UserService from "../services/userService.js";
 
 export const users = async (req, res) => {
     try {
-        const users = await UserService.getUsers({ excludeUserId: req.userId, tenantId: req.tenantId });
+        const users = await UserService.getUsers({ tenantId: req.tenantId });
         return res.json(users);
 
     } catch (error) {
