@@ -57,6 +57,14 @@ export const register = async (req, res) => {
     }
 
     const redirect = req.query.redirect;
+    const existingUser = await UserService.getUserByEmail(email);
+    if (existingUser) {
+        if (existingUser.isActive) {
+            return res.send(getRegisterHtmlForm(req, 'The email is already in use.'));
+        }
+        await EmailService.sendVerificationEmail({ user: existingUser, query: { redirect } });
+        return res.redirect(UrlUtils.buildUrlWithQuery('/login', { redirect }));
+    }
     const result = await UserService.register({ username, email, password, tenantId: req.headers['x-tenant-id'] });
     if (result.success) {
         const sendResult = await EmailService.sendVerificationEmail({ user: result.user, query: { redirect } });
@@ -119,6 +127,9 @@ function getLoginHtmlForm(request, message) {
 
     if (message) {
         authFormHtml += `<p style="color: red; margin-top: 10px;">${message}</p>`
+        if (message.includes('validate your email')) {
+            authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/verification/email/resend', { redirect })}"><button type="button">Resend verification email</button></a>`;
+        }
     } else {
         authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/register', { redirect })}"><button type="button">Create Account</button></a>`;
         authFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/forgot-password', { redirect })}"><button type="button">Forgot password?</button></a>`;
@@ -143,6 +154,7 @@ function getRegisterHtmlForm(request, message) {
         registerFormHtml += `<p style="color: red; margin-top: 10px;">${message}</p>`
     }
 
+    registerFormHtml += `<a href="${UrlUtils.buildUrlWithQuery('/login', { redirect })}"><button type="button">Back to Login</button></a>`;
     return registerFormHtml;
 }
 

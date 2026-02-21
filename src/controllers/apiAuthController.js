@@ -1,6 +1,8 @@
 import AuthService from "../services/authService.js";
 import TokenService from "../services/tokenService.js";
 import RefreshTokenService from "../services/refreshTokenService.js";
+import EmailService from "../services/emailService.js";
+import UserService from "../services/userService.js";
 
 function getRefreshTokenFromRequest(req) {
     return req.cookies?.refresh_token || req.body?.refresh_token || req.headers['x-refresh-token'];
@@ -64,6 +66,43 @@ export const login = async (req, res) => {
     } else {
         return res.status(401).json({ message: result.message });
     }
+};
+
+export const register = async (req, res) => {
+    const { username, email, password, confirmPassword } = req.body;
+    if (!email || !username || !password) {
+        return res.status(400).json({ message: "Missing required fields." });
+    }
+    if (password !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match." });
+    }
+
+    const redirect = req.query?.redirect;
+    const existingUser = await UserService.getUserByEmail(email);
+    if (existingUser) {
+        if (existingUser.isActive) {
+            return res.status(409).json({ message: "The email is already in use." });
+        }
+        await EmailService.sendVerificationEmail({ user: existingUser, query: { redirect } });
+        return res.status(200).json({ message: "Check your inbox to verify your account." });
+    }
+
+    const result = await UserService.register({
+        username,
+        email,
+        password,
+        tenantId: req.headers['x-tenant-id'],
+    });
+
+    if (!result.success) {
+        return res.status(400).json({ message: result.message });
+    }
+
+    const sendResult = await EmailService.sendVerificationEmail({ user: result.user, query: { redirect } });
+    if (sendResult) {
+        return res.status(201).json({ message: "Check your inbox to verify your account." });
+    }
+    return res.status(500).json({ message: "An error occurred while attempting to send the confirmation email." });
 };
 
 export function checkSsoToken(req, res) {
@@ -159,4 +198,34 @@ export const logoutAll = async (req, res) => {
     clearRefreshCookie(res);
     clearAccessCookie(res);
     return res.status(204).send();
+};
+
+export const resendVerificationEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const user = await UserService.getUserByEmail(email);
+        if (!user) {
+            return res.status(400).json({ message: "No user found with that email." });
+        }
+        if (user.isActive) {
+            return res.status(400).json({ message: "This account is already verified." });
+        }
+
+        const sendResult = await EmailService.sendVerificationEmail({
+            user,
+            query: req.query ?? {},
+        });
+
+        if (sendResult) {
+            return res.status(200).json({ message: "A new verification email has been sent." });
+        }
+        return res.status(400).json({ message: "Try again." });
+    } catch (error) {
+        console.error('Error resending verification email:', error);
+        return res.status(500).json({ message: "An unexpected error occurred." });
+    }
 };

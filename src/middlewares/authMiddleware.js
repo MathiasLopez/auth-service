@@ -4,6 +4,7 @@ import UserService from "../services/userService.js";
 const publicPaths = [
     '/login',
     '/api/login',
+    '/api/register',
     '/api/refresh',
     '/api/logout',
     '/api/logout/all',
